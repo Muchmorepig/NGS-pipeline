@@ -1,0 +1,257 @@
+----
+HB33 mutate 4D 和 6D 的样本合并, 常规分析
+----
+
+## 加载需要的Package
+```{r}
+library(Seurat)
+library(magrittr)
+library(clustree)
+library(reticulate)
+```
+
+## 创建合并的 Seurat obj
+读取 Seurat obj 到一个 `named list` 中，然后`merge`到一起
+```{r}
+obj_list <- list.files("./Seurat_obj", full.names = TRUE) %>%
+    lapply(., function(x) {
+        readRDS(x) %>%
+            GetAssayData(slot = "counts") %>%
+            CreateSeuratObject()
+    })
+
+obj <- merge(
+    x = obj_list[[1]],
+    y = obj_list[[2]],
+)
+
+rm(obj_list)
+gc()
+```
+
+## 执行一般流程
+```{r}
+obj %<>%
+    NormalizeData() %>%
+    FindVariableFeatures(
+        selection.method = "vst",
+        nfeatures = round(0.1 * length(rownames(.)))
+    ) %>%
+    ScaleData(features = rownames(.)) %>%
+    RunPCA(features = VariableFeatures(.), npcs = 100, verbose = FALSE)
+
+ElbowPlot(obj, reduction = "pca", ndims = 100)
+```
+
+可选(上面的和下面这个选一个), `SCTransform`是集成了`NormalizeData`、`FindVariableFeatures`和`ScaleData`的workflow
+```{r}
+obj %<>%
+    SCTransform(return.only.var.genes = FALSE) %>%
+    RunPCA(features = VariableFeatures(.), npcs = 100)
+
+ElbowPlot(obj, reduction = "pca", ndims = 100)
+```
+
+
+根据PCA的结果, 选择合适的Dimension数, 这个对后面的过程影响较大
+选择图像上趋势变化相对较小的区间
+
+```{r}
+dims <- 1:70
+obj <- FindNeighbors(obj, dims = dims)
+```
+
+```{r}
+tmp <- FindClusters(
+    object = obj,
+    resolution = seq(.1, 1.6, .2)
+)
+
+clustree(tmp@meta.data, prefix = "RNA_snn_res.")
+rm(tmp)
+gc()
+```
+
+图作为参考, 选一个看起来合适的resolution, 之后聚类
+```{r}
+obj %<>%
+    FindClusters(resolution = 0.7) %>%
+    RunTSNE(dims = dims) %>%
+    RunUMAP(dims = dims, metric = "correlation")
+```
+> 聚类之后, 细胞对应的Cluster信息会存在 `meta.data` 中, 同时也有样本分组的信息
+> UMAP、TSEN坐标信息通过 `obj@reductions$umap@cell.embeddings`可以直接访问，或者使用 `Embeddings`函数获取
+
+## 可视化
+```{r}
+DimPlot(obj, reduction = "tsne", label = TRUE, pt.size = 1)
+
+p_umap <- DimPlot(
+    obj,
+    group.by = "orig.ident",
+    reduction = "umap", pt.size = .6
+) +
+    DimPlot(
+        obj,
+        reduction = "umap",
+        label = TRUE,
+        repel = TRUE, pt.size = .6,
+        cols = paletteer::paletteer_d("ggsci::default_igv")
+    ) &
+    tidydr::theme_dr() &
+    theme(
+        panel.grid = element_blank(),
+        legend.position = "top", title = element_blank()
+    ) &
+    guides(
+        color = guide_legend(
+            keywidth = 0.4,
+            nrow = 2,
+            override.aes = list(size = 2, stroke = 2)
+        )
+    )
+
+ggsave(filename = "./Plots/merge_46.pdf", p_umap, width = 16, height = 8)
+```
+
+## 保存
+```{r}
+saveRDS(obj, "./Seurat_obj/merge_46.rds")
+```
+
+统计一下Cluster的占比
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+
+meta <- obj@meta.data %>%
+    dplyr::select(orig.ident, seurat_clusters) %>%
+    mutate(stage = gsub("AT_*", "", orig.ident))
+
+meta %>%
+    as_tibble() %>%
+    nest(cl = seurat_clusters) %>%
+    rowwise() %>%
+    mutate(pp = list(as_tibble(
+        prop.table(table(cl)) * 100,
+        n = "proportion"
+    ))) -> props1
+
+props2 <- do.call(rbind, props1$pp) %>%
+    mutate(
+        cc = rep(seq_along(props1$stage), sapply(props1$pp, nrow)),
+        stage = rep(props1$stage, sapply(props1$pp, nrow))
+    )
+
+props2$seurat_clusters <- factor(
+    props2$seurat_clusters,
+    levels = gtools::mixedsort(unique(props2$seurat_clusters))
+)
+
+p1 <- ggplot(props2, aes(x = cc, y = proportion, fill = seurat_clusters)) +
+    geom_area() +
+    scale_fill_manual(
+        values = paletteer::paletteer_d("ggsci::default_igv")
+        # breaks = mixedsort(props2$seurat_clusters)
+    ) +
+    scale_x_continuous(
+        expand = c(0, 0),
+        breaks = seq_along(props1$stage),
+        labels = props1$stage
+    ) +
+    scale_y_continuous(
+        expand = c(0, 0)
+        # breaks = c(25, 50, 75),
+        # labels = c("25%", "50%", "75%")
+    ) +
+    ggprism::theme_prism()
+# geom_bar(position = "fill", stat = "identity") +
+
+
+meta %>%
+    as_tibble() %>%
+    dplyr::select(stage, seurat_clusters) %>%
+    nest(stage = stage) %>%
+    rowwise() %>%
+    mutate(pp = list(as_tibble(
+        prop.table(table(stage)) * 100,
+        n = "proportion"
+    ))) -> props3
+
+
+p2 <- do.call(rbind, props3$pp) %>%
+    mutate(
+        cluster = rep(props3$seurat_clusters, sapply(props3$pp, nrow))
+    ) %>%
+    ggplot(data = ., aes(x = cluster, y = proportion, fill = stage)) +
+    geom_bar(position = "fill", stat = "identity") +
+    ggprism::theme_prism() +
+    theme(
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank()
+    )
+
+
+p2 + coord_flip() + scale_y_continuous(expand = c(0, 0))
+
+pp2 <- p1 +
+    coord_flip() +
+    theme(
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "bottom"
+    ) + guides(
+        fill = guide_legend(
+            keywidth = 0.8,
+            nrow = 1,
+            override.aes = list(size = 2, stroke = 2)
+        )
+    )
+
+
+ppp <- p_umap / (p2 + theme(legend.position = "none")) / pp2 + plot_layout(heights = c(3, 1, 1))
+
+pdf("./Plots/merge_46_umap.pdf", width = 16, height = 12)
+ppp
+dev.off()
+```
+
+```{r}
+# obj %<>%
+#     NormalizeData(
+#         normalization.method = "LogNormalize",
+#         scale.factor = 1e4
+#     ) %>%
+#     FindVariableFeatures(
+#         selection.method = "mean.var.plot",
+#         mean.cutoff = c(0.0125, 3),
+#         dispersion.cutoff = c(1.0, Inf)
+#     ) %>%
+#     ScaleData(
+#         features = rownames(.),
+#         vars.to.regress = c("nCount_RNA", "percent.mito", "percent.chlo", "CC.Difference")
+#     )
+
+## 添加细胞器、细胞周期相关
+# obj[["percent.organelle"]] <- PercentageFeatureSet(obj, pattern = "^ATCG|^ATMG")
+# obj[["percent.mito"]] <- PercentageFeatureSet(obj, pattern = "^ATMG")
+# obj[["percent.chlo"]] <- PercentageFeatureSet(obj, pattern = "^ATCG")
+
+# cc_gene <- read.csv("/data5/wmc_data/reference/TAIR10/Arabidopsis_cell_cycle_genes_fx.csv")
+# g1s <- cc_gene[cc_gene$phase == "G1S", 1]
+# g2m <- cc_gene[cc_gene$phase == "G2M", 1]
+
+# obj <- CellCycleScoring(
+#     obj,
+#     s.features = g1s,
+#     g2m.features = g2m,
+#     set.ident = TRUE
+# )
+
+# obj[["CC.Difference"]] <- obj$S.Score - obj$G2M.Score
+```

@@ -1,0 +1,166 @@
+## 加载需要的Package
+```{r}
+set.seed(1234)
+library(Seurat)
+library(harmony)
+library(magrittr)
+library(clustree)
+library(reticulate)
+```
+
+## 读取 + Harmony
+```{r}
+obj <- readRDS("./Seurat_obj/merge_46_46.rds")
+
+obj[["tt"]] <- stringr::str_sub(obj$stage, 1, 2)
+
+obj <- RunHarmony(obj, "tt")
+names(obj@reductions)
+
+ElbowPlot(obj, reduction = "harmony", ndims = 100)
+```
+
+根据PCA的结果, 选择合适的Dimension数, 这个对后面的过程影响较大
+选择图像上趋势变化相对较小的区间
+```{r}
+dims <- 1:100
+
+obj %<>%
+    FindNeighbors(dims = dims, reduction = "harmony") %>%
+    FindClusters(resolution = 1) %>%
+    RunTSNE(dims = dims, reduction = "harmony") %>%
+    RunUMAP(dims = dims, metric = "correlation", reduction = "harmony")
+```
+
+
+## 可视化
+```{r}
+p_umap <- DimPlot(
+    obj,
+    group.by = "stage",
+    reduction = "umap", pt.size = .5
+) +
+    DimPlot(
+        obj,
+        reduction = "umap",
+        label = TRUE,
+        repel = TRUE, pt.size = .5,
+        cols = paletteer::paletteer_d("ggsci::default_igv")
+    ) &
+    tidydr::theme_dr() &
+    theme(
+        panel.grid = element_blank(),
+        legend.position = "top", title = element_blank()
+    ) &
+    guides(
+        color = guide_legend(
+            keywidth = 0.4,
+            nrow = 2,
+            override.aes = list(size = 2, stroke = 2)
+        )
+    )
+
+ggsave(filename = "./Plots/merge_64_64_harmony.pdf", p_umap, width = 16, height = 8)
+```
+
+## 保存
+```{r}
+saveRDS(obj, "./Seurat_obj/merge_harmony.rds")
+```
+
+统计一下Cluster的占比
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+
+meta <- obj@meta.data %>%
+    dplyr::select(orig.ident, seurat_clusters) %>%
+    as_tibble()
+
+
+meta %>%
+    nest(cl = seurat_clusters) %>%
+    rowwise() %>%
+    mutate(pp = list(as_tibble(
+        prop.table(table(cl)) * 100,
+        n = "proportion"
+    ))) -> props1
+
+props2 <- do.call(rbind, props1$pp) %>%
+    mutate(
+        cc = rep(seq_along(props1$orig.ident), sapply(props1$pp, nrow)),
+        ident = rep(props1$orig.ident, sapply(props1$pp, nrow))
+    )
+
+props2$seurat_clusters <- factor(
+    props2$seurat_clusters,
+    levels = gtools::mixedsort(unique(props2$seurat_clusters))
+)
+
+p1 <- ggplot(props2, aes(x = cc, y = proportion, fill = seurat_clusters)) +
+    geom_area() +
+    scale_fill_manual(
+        values = paletteer::paletteer_d("ggsci::default_igv")
+        # breaks = mixedsort(props2$seurat_clusters)
+    ) +
+    scale_x_continuous(
+        expand = c(0, 0),
+        breaks = seq_along(props1$orig.ident),
+        labels = props1$orig.ident
+    ) +
+    scale_y_continuous(
+        expand = c(0, 0)
+        # breaks = c(25, 50, 75),
+        # labels = c("25%", "50%", "75%")
+    ) +
+    ggprism::theme_prism()
+# geom_bar(position = "fill", stat = "identity") +
+
+
+meta %>%
+    nest(ident = orig.ident) %>%
+    rowwise() %>%
+    mutate(pp = list(as_tibble(
+        prop.table(table(ident)) * 100,
+        n = "proportion"
+    ))) -> props3
+
+
+p2 <- do.call(rbind, props3$pp) %>%
+    mutate(
+        cluster = rep(props3$seurat_clusters, sapply(props3$pp, nrow))
+    ) %>%
+    ggplot(data = ., aes(x = cluster, y = proportion, fill = orig.ident)) +
+    geom_bar(position = "fill", stat = "identity") +
+    ggprism::theme_prism() +
+    theme(
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank()
+    )
+
+
+pp2 <- p1 +
+    coord_flip() +
+    theme(
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "bottom"
+    ) + guides(
+        fill = guide_legend(
+            keywidth = 0.8,
+            nrow = 1,
+            override.aes = list(size = 2, stroke = 2)
+        )
+    )
+
+ppp <- p_umap / (p2 + theme(legend.position = "none")) / pp2 + plot_layout(heights = c(3, 1, 1))
+
+pdf("./Plots/merge_umap_harmony.pdf", width = 16, height = 12)
+ppp
+dev.off()
+```

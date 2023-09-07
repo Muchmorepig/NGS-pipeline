@@ -24,7 +24,7 @@ usage() {
   echo -e "
     -i | --input    双端测序文件位置 (eg: fq.gz 格式为 sample_R1.fq.gz sample_R2.fq.gz)
     -o | --output   项目路径, 后续结果文件都会保存于此 (Defult: cuttag)
-    -g | --genome   基因组, 默认是tair10, 其他可选: mpTak1、mpTak2
+    -g | --genome   基因组, 默认是tair10, 其他可选: mpTak1、mpTak2、irgsp
     -t | --trim     是否去接头 (Defult: false)
     -a | --align    是否比对到基因组 (Defult: false)
     -l | --filter   是否去除PCR重复等 (Defult: false)
@@ -216,7 +216,7 @@ if [ "$align" == "true" ]; then
 
   if [ -d "${odir}/clean" ] && ls ${odir}/clean/*fq.gz &>/dev/null; then
     date >&2
-    echo >&2 -e "[info] Aligning file to reference genome...\n"
+    
 
     ff=$(ls ${odir}/clean/*fq.gz | sed 's/_R[12]\..*//' | uniq)
 
@@ -228,6 +228,17 @@ if [ "$align" == "true" ]; then
       bt2idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V5/Mpolymorpha_V5"
     fi
 
+    if [ "$genome" == "mpTak2" ]; then
+      bt2idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V6/Mpolymorpha_V6"
+    fi
+
+    if [ "$genome" == "irgsp" ]; then
+      bt2idx="/data5/wmc_data/index/bowtie2/Oryza_sativa_RAP/Oryza_sativa"
+    fi
+
+    echo >&2 -e "[info] Aligning file to reference genome: ${B}${genome}${N}"
+    echo >&2 -e "[info] Index: ${B}${bt2idx}${N}\n"
+    
     # align
     if [ "$frag_120" == "TRUE" ]; then
       echo "[info] use Bowtie2 command: --dovetail --phred33"
@@ -253,7 +264,6 @@ if [ "$align" == "true" ]; then
       for i in $ff; do
         base=$(basename ${i})
         echo -e "  ${G}Sample: ${base}${N}"
-
         # 
         (bowtie2 -p $th --very-sensitive-local -I 10 -X 700 -x ${bt2idx} \
           -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz) \
@@ -363,6 +373,16 @@ if [ "$call" == "true" ]; then
 
   if [ "$genome" == "mpTak1" ]; then
     gs=2.2e8
+    echo "Genome size: $gs"
+  fi
+
+  if [ "$genome" == "mpTak2" ]; then
+    gs=2.4e8
+    echo "Genome size: $gs"
+  fi
+
+  if [ "$genome" == "irgsp" ]; then
+    gs=3.7e8
     echo "Genome size: $gs"
   fi
 
