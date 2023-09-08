@@ -18,7 +18,7 @@ B="\033[1m"
 
 # 使用方法
 usage() {
-  echo "需要工具 fastp bowtiew samtools sambamba deeptools MACS2;
+  echo "需要工具 fastp bowtie2 samtools sambamba deeptools MACS2;
     请先运行 module load ..." >&2
   echo "Usage: bash $0 [-i fastq/path] [-o output/dir] -taslc -g tair10" >&2
   echo -e "
@@ -142,10 +142,19 @@ for file in "${indir}"/*fq.gz; do
   fi
 done
 
+# 输出样本信息
 sn=$(printf "%s\n" "${file_array[@]}" | sed 's/_R[12]\..*//' | uniq)
-echo -e "${B}Sample: ${N}"
+
+echo -e "${B}Sample:${N}"
 for i in ${sn}; do printf "  %s" "${i}"; done
-echo -e "\n"
+# 设置对应索引和基因组大小
+source ./src/get_info.sh
+get_info $genome
+
+echo -e "\n${B}Genome:${N} $genome\n${B}Size:${N} $gs\n${B}Bowtie2-index:${N} $bt2idx"
+echo  " "
+sleep 0.5
+
 echo >&2 -e "[info] Trim: ${B}$trim${N}"
 
 if [ "$trim" == "true" ]; then
@@ -216,29 +225,11 @@ if [ "$align" == "true" ]; then
 
   if [ -d "${odir}/clean" ] && ls ${odir}/clean/*fq.gz &>/dev/null; then
     date >&2
-    
 
     ff=$(ls ${odir}/clean/*fq.gz | sed 's/_R[12]\..*//' | uniq)
 
-    if [ "$genome" == "tair10" ]; then
-      bt2idx="/data5/wmc_data/index/bowtie2/Tair10/tair10"
-    fi
-
-    if [ "$genome" == "mpTak1" ]; then
-      bt2idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V5/Mpolymorpha_V5"
-    fi
-
-    if [ "$genome" == "mpTak2" ]; then
-      bt2idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V6/Mpolymorpha_V6"
-    fi
-
-    if [ "$genome" == "irgsp" ]; then
-      bt2idx="/data5/wmc_data/index/bowtie2/Oryza_sativa_RAP/Oryza_sativa"
-    fi
-
-    echo >&2 -e "[info] Aligning file to reference genome: ${B}${genome}${N}"
     echo >&2 -e "[info] Index: ${B}${bt2idx}${N}\n"
-    
+
     # align
     if [ "$frag_120" == "TRUE" ]; then
       echo "[info] use Bowtie2 command: --dovetail --phred33"
@@ -264,8 +255,8 @@ if [ "$align" == "true" ]; then
       for i in $ff; do
         base=$(basename ${i})
         echo -e "  ${G}Sample: ${base}${N}"
-        # 
-        (bowtie2 -p $th --very-sensitive-local -I 10 -X 700 -x ${bt2idx} \
+        #
+        (bowtie2 -p $th -I 10 -X 700 -x ${bt2idx} \
           -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz) \
           2>${bowtie2_log}/${base}.bowtie2 |
           samtools sort -@ 20 -O bam -o ${odir}/align/${base}.sorted.bam -
@@ -366,25 +357,6 @@ if [ "$call" == "true" ]; then
 
   bedopsbin="/data3/wanglab/wmc/tools/bin"
 
-  if [ "$genome" == "tair10" ]; then
-    gs=1.1e8
-    echo "Genome size: $gz"
-  fi
-
-  if [ "$genome" == "mpTak1" ]; then
-    gs=2.2e8
-    echo "Genome size: $gs"
-  fi
-
-  if [ "$genome" == "mpTak2" ]; then
-    gs=2.4e8
-    echo "Genome size: $gs"
-  fi
-
-  if [ "$genome" == "irgsp" ]; then
-    gs=3.7e8
-    echo "Genome size: $gs"
-  fi
 
   for shift in ${bam_file}; do
     base=$(basename ${shift} _shift.sorted.bam)
