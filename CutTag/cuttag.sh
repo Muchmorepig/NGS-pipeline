@@ -147,11 +147,13 @@ sn=$(printf "%s\n" "${file_array[@]}" | sed 's/_R[12]\..*//' | uniq)
 
 echo -e "${B}Sample:${N}"
 for i in ${sn}; do printf "  %s" "${i}"; done
+
 # 设置对应索引和基因组大小
-source ./src/get_info.sh
+script_path=$(dirname $(readlink -f $0))
+source ${script_path}/src/get_info.sh
 get_info $genome
 
-echo -e "\n${B}Genome:${N} $genome\n${B}Size:${N} $gs\n${B}Bowtie2-index:${N} $bt2idx"
+echo -e "\n${B}Genome:${N}\n  $genome\n${B}Size:${N}\n  $gs\n${B}Bowtie2-index:${N}\n  $bt2idx"
 echo  " "
 sleep 0.5
 
@@ -249,9 +251,9 @@ if [ "$align" == "true" ]; then
 
       done
     else
-      echo "[info] use Bowtie2 command: --very-sensitive-local --phred33 -I 10 -X 700"
+      echo "[info] use Bowtie2 command: --phred33 -I 10 -X 700"
       echo "[info] The dovetail mode is off [as parameter frag_120 is off]"
-
+      # --very-sensitive-local
       for i in $ff; do
         base=$(basename ${i})
         echo -e "  ${G}Sample: ${base}${N}"
@@ -309,9 +311,9 @@ if [ "$shift" == "true" ]; then
   date >&2
   echo >&2 "[info] Reads shifting "
   echo >&2 -e "${G}[info]${N} ${B}All reads aligning to the + strand were offset by +4 bp,
-        and all reads aligning to the - strand were offset -5 bp, 
-        since the CUT&Tag approach uses Tn5 transposase which has 
-        been shown to bind as a dimer and insert two adaptors separated by 9 bp...${N}\n"
+       and all reads aligning to the - strand were offset -5 bp, 
+       since the CUT&Tag approach uses Tn5 transposase which has 
+       been shown to bind as a dimer and insert two adaptors separated by 9 bp...${N}\n"
 
   echo >&2 "[info] The shifted BAM files will be used in the following analysis "
   echo >&2 "[info] Shifting and indexing "
@@ -377,7 +379,7 @@ if [ "$call" == "true" ]; then
   done
 else
   date >&2
-  echo >&2 -e "[info] Skip ATAC-Shift...\n"
+  echo >&2 -e "[info] Skip Peaks Calling...\n"
 fi
 
 echo >&2 "#########################"
