@@ -1,11 +1,16 @@
-module load cellranger/3.1.0
+# module load cellranger/7.0.0
 id=$1
-fq=$2
-cel=$3
+sample=$2
+tr=$3
+fq=$4
+
 cellranger count --id=$id \
-	--sample=$id \
-	--transcriptome=Araport11V3 \
+	--sample=$sample \
+	--transcriptome=$tr \
 	--fastqs=$fq \
 	--nosecondary \
-	--localcores=70 \
-	--expect-cells=$cel
+	--localcores=30 \
+
+# nohup bash celcount.sh cim22d SC20210915S1 ~/reference/Oryza_sativa/forSCRNA/IRGSP_V1 ./rawdata/cim22d 2>&1 > cim22d.log &
+# nohup time bash celcount.sh sim12d SC20200629S1 ~/reference/Oryza_sativa/forSCRNA/IRGSP_V1 ./rawdata/sim12d 2>&1 > sim12d.log &
+# nohup time bash celcount.sh sim4d SC20211014S1 ~/reference/Oryza_sativa/forSCRNA/IRGSP_V1 ./rawdata/sim4d 2>&1 > sim4d.log &
