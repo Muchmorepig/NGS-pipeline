@@ -6,7 +6,7 @@ trim_files() {
 
   if ! command -v fastp &>/dev/null; then
     echo -e "${R}Need tool: fastp ...${N}"
-    exit
+    exit 1
   fi
 
   if [ ! -d "${odir}/clean" ]; then

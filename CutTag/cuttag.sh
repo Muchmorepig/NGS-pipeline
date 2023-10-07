@@ -154,11 +154,10 @@ source ${script_path}/src/get_info.sh
 get_info $genome
 
 echo -e "\n${B}Genome:${N}\n  $genome\n${B}Size:${N}\n  $gs\n${B}Bowtie2-index:${N}\n  $bt2idx"
-echo  " "
+echo " "
 sleep 0.5
 
 echo >&2 -e "[info] Trim: ${B}$trim${N}"
-
 
 if [ "$trim" == "true" ]; then
   source ${script_path}/src/fastp_cmd.sh
@@ -169,74 +168,12 @@ else
   sleep 0.2
 fi
 
-
 echo >&2 -e "[info] Align: ${B}$align${N}"
 
 if [ "$align" == "true" ]; then
 
-  if ! command -v bowtie2 &>/dev/null || ! command -v samtools &>/dev/null; then
-    echo -e "${R}Need tools both 'bowtie2' and 'samtools' ${N}"
-    echo -e "${R}Try to Run Comand: \n  module load bowtie/2.3.4.3 && module load samtools/1.10 ${N}"
-    echo -e "${R}Then, Rerun Command${N} ${0} without ${B}'-t'${N} to skip trim"
-    exit
-  fi
-
-  if [ ! -d "${odir}/align" ]; then
-    echo -e "  ${G}Created directory: ${odir}/align${N}"
-    mkdir -p ${odir}/align
-  fi
-  sleep 0.2
-
-  bowtie2_log=${odir}/log/bowtie2_log
-  if [ ! -d "${bowtie2_log}" ]; then
-    echo -e "  ${G}Created directory: ${bowtie2_log} ${N} \n"
-    mkdir -p ${bowtie2_log}
-  fi
-  sleep 0.2
-
-  if [ -d "${odir}/clean" ] && ls ${odir}/clean/*fq.gz &>/dev/null; then
-    date >&2
-
-    ff=$(ls ${odir}/clean/*fq.gz | sed 's/_R[12]\..*//' | uniq)
-
-    echo >&2 -e "[info] Index: ${B}${bt2idx}${N}\n"
-
-    # align
-    if [ "$frag_120" == "TRUE" ]; then
-      echo "[info] use Bowtie2 command: --dovetail --phred33"
-      echo "[info] The dovetail mode is enabled [as parameter '-f|--frag_120' is on]"
-
-      for i in $ff; do
-        base=$(basename ${i})
-        echo -e "  ${G}Sample: ${base}${N}"
-        # echo ${i}_R1.fq.gz
-        # echo ${odir}/align/${base}.bam
-
-        bowtie2 -p $th --dovetail --phred33 -x ${bt2idx} \
-          -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz \
-          2>$logdir/"$base".bowtie2 | samtools sort -@ 20 -O bam -o ${odir}/align/${base}.sorted.bam -
-
-        samtools index ${odir}/align/${base}.sorted.bam
-
-      done
-    else
-      echo "[info] use Bowtie2 command: --phred33 -I 10 -X 700"
-      echo "[info] The dovetail mode is off [as parameter frag_120 is off]"
-      # --very-sensitive-local
-      for i in $ff; do
-        base=$(basename ${i})
-        echo -e "  ${G}Sample: ${base}${N}"
-        #
-        (bowtie2 -p $th -I 10 -X 700 -x ${bt2idx} \
-          -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz) \
-          2>${bowtie2_log}/${base}.bowtie2 |
-          samtools sort -@ 20 -O bam -o ${odir}/align/${base}.sorted.bam -
-        # | samtools view -bS - > ${odir}/align/${base}.bam
-        samtools index ${odir}/align/${base}.sorted.bam
-
-      done
-    fi
-  fi
+  source ${script_path}/src/bowtie_align.sh
+  bowtie_align $odir/clean $odir/align $th
 
   date >&2
   echo >&2 -e "[info] Aligning Finished...\n"
@@ -327,7 +264,6 @@ if [ "$call" == "true" ]; then
   sleep 0.2
 
   bedopsbin="/data3/wanglab/wmc/tools/bin"
-
 
   for shift in ${bam_file}; do
     base=$(basename ${shift} _shift.sorted.bam)
