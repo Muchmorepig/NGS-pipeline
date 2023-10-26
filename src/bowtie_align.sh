@@ -42,7 +42,7 @@ bowtie_align() {
                 # echo ${i}_R1.fq.gz
                 # echo ${odir}/${base}.bam
 
-                bowtie2 -p $th --dovetail --phred33 -x ${bt2idx} \
+                bowtie2 -p $th --dovetail --end-to-end --very-sensitive --no-mixed --no-discordan -x ${bt2idx} \
                     -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz \
                     2>$logdir/"$base".bowtie2 | samtools sort -@ 20 -O bam -o ${odir}/${base}.sorted.bam -
 
@@ -50,14 +50,14 @@ bowtie_align() {
 
             done
         else
-            echo "[info] use Bowtie2 command: --phred33 -I 10 -X 700"
+            echo "[info] use Bowtie2 command: --end-to-end --very-sensitive --no-mixed --no-discordan -I 10 -X 700"
             echo "[info] The dovetail mode is off [as parameter frag_120 is off]"
             # --very-sensitive-local
             for i in $ff; do
                 base=$(basename ${i})
                 echo -e "  ${G}Sample: ${base}${N}"
                 #
-                (bowtie2 -p $th -I 10 -X 700 -x ${bt2idx} \
+                (bowtie2 -p $th --end-to-end --very-sensitive --no-mixed --no-discordan -I 10 -X 700 -x ${bt2idx} \
                     -1 ${i}_R1.fq.gz -2 ${i}_R2.fq.gz) \
                     2>${bowtie2_log}/${base}.bowtie2 |
                     samtools sort -@ 20 -O bam -o ${odir}/${base}.sorted.bam -
