@@ -46,20 +46,20 @@ rm ${output}/matrix_scale_region.scale.gz -rf
 ## correlation plot
 
 ### plot scatterplot
-plotCorrelation -in ${output}/multibw_results.npz \
-    --corMethod spearman --skipZeros \
-    --whatToPlot scatterplot \
-    --plotTitle "Spearman Correlation" \
-    --removeOutliers \
-    --plotFile ${output}/correlation_spearman_bwscore_scatterplot.pdf
+# plotCorrelation -in ${output}/multibw_results.npz \
+#     --corMethod spearman --skipZeros \
+#     --whatToPlot scatterplot \
+#     --plotTitle "Spearman Correlation" \
+#     --removeOutliers \
+#     --plotFile ${output}/correlation_spearman_bwscore_scatterplot.pdf
 
-### plot heatmap
-plotCorrelation -in ${output}/multibw_results.npz \
-    --corMethod spearman --skipZeros \
-    --whatToPlot heatmap \
-    --plotTitle "Spearman Correlation" \
-    --removeOutliers \
-    --plotNumbers \
-    --plotFile ${output}/correlation_spearman_bwscore_heatmapplot.pdf
+# ### plot heatmap
+# plotCorrelation -in ${output}/multibw_results.npz \
+#     --corMethod spearman --skipZeros \
+#     --whatToPlot heatmap \
+#     --plotTitle "Spearman Correlation" \
+#     --removeOutliers \
+#     --plotNumbers \
+#     --plotFile ${output}/correlation_spearman_bwscore_heatmapplot.pdf
 
 rm ${output}/multibw_results.npz -rf
