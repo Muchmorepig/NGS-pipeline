@@ -150,7 +150,9 @@ for i in ${sn}; do printf "  %s" "${i}"; done
 
 # 设置对应索引和基因组大小
 script_path=$(dirname $(readlink -f $0))
-source ${script_path}/..//src/get_info.sh
+source ${script_path}/../src/cmd_check.sh
+source ${script_path}/../src/get_info.sh
+
 get_info $genome
 
 echo -e "\n${B}Genome:${N}\n  $genome\n${B}Size:${N}\n  $gs\n${B}Bowtie2-index:${N}\n  $bt2idx"
@@ -160,8 +162,9 @@ sleep 0.5
 echo >&2 -e "[info] Trim: ${B}$trim${N}"
 
 if [ "$trim" == "true" ]; then
+  command_exists "fastp"
   source ${script_path}/../src/fastp_cmd.sh
-  trim_files $indir $odir $th
+  trim_files $indir $odir/clean $th
 else
   date >&2
   echo >&2 -e "[info] Skipping Trim ... \n"
@@ -171,9 +174,10 @@ fi
 echo >&2 -e "[info] Align: ${B}$align${N}"
 
 if [ "$align" == "true" ]; then
-
-  source ${script_path}/../src/bowtie_align.sh
-  bowtie_align $odir/clean $odir/align $th
+  command_exists "bowtie2"
+  command_exists "samtools"
+  source ${script_path}/../src/bowtie2_align.sh
+  bowtie_align $odir/clean $odir/align $th "normal"
 
   date >&2
   echo >&2 -e "[info] Aligning Finished...\n"
