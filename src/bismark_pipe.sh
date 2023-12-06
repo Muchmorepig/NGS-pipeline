@@ -4,6 +4,7 @@ bismark_align() {
     local ref=$2
     local odir=$3
     local th=$4
+    local trim_galore=$5
     local temp_dir='./temp'
 
     if [ ! -d "$indir" ]; then
@@ -11,14 +12,19 @@ bismark_align() {
         exit 1
     fi
 
+
     mkdir -p $odir $odir/log $temp_dir
 
     echo "Starting alignment at $(date)"
-    local file_arr=($(ls ${indir}/*gz | sed 's/_R[12]_val_[12]\..*//' | uniq))
+    if [ "${trim_galore}" == "true" ]; then
+        rename 's/_val_[12]//' ${indir}/*gz
+    fi
+
+    local file_arr=($(ls ${indir}/*gz | sed 's/_R[12]\..*//' | uniq))
 
     for i in "${file_arr[@]}"; do
-        local fq_1="${i}_R1_val_1.fq.gz"
-        local fq_2="${i}_R2_val_2.fq.gz"
+        local fq_1="${i}_R1.fq.gz"
+        local fq_2="${i}_R2.fq.gz"
         local base=$(basename $i)
         local output_file=${odir}/${base}
 
@@ -32,7 +38,7 @@ bismark_align() {
             -o $odir \
             -1 $fq_1 \
             -2 $fq_2 \
-            --bam 2>$odir/log/${i##*/}.log
+            --bam 2>&1 >$odir/log/${i##*/}.log
 
         local tmp_bam=${output_file}*_bismark_bt2_pe.bam
         mv $tmp_bam ${output_file}.bam
@@ -94,7 +100,8 @@ methylation_extraction_aligned_bismark() {
     for i in $ff; do
         base=$(basename ${i})
         echo -e "  ${G}BAM: ${base}${N}"
-        bismark_methylation_extractor --paired-end --ignore_r2 2 --CX --comprehensive \
+        # --comprehensive
+        bismark_methylation_extractor --paired-end --ignore_r2 2 --CX \
             --gzip --bedGraph --multicore $th --buffer_size 20G \
             --cytosine_report \
             --genome_folder $bismark_genome_folder \

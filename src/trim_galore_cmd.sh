@@ -21,7 +21,7 @@ galore() {
     trim_galore --paired \
       -o ${odir} \
       ${i}_R1.fq.gz ${i}_R2.fq.gz \
-      2>${odir}/log/${base}.log &
+      > ${odir}/log/${base}.log 2>&1 &
 
   done
 
