@@ -16,7 +16,7 @@ extract_methylation() {
     local log_dir="${output_dir}/logs"
     local methylKit_dir="${output_dir}/methylKit"
     local bedGraph_dir="${output_dir}/bedGraph"
-    local methylDackel_path="/data5/wmc_data/mamba/envs/wgbs/bin/MethylDackel"
+    local methylDackel_path="/data5/wmc_data/mambaforge/envs/wgbs/bin/MethylDackel"
 
     # Directory creation
     mkdir -p "${output_dir}" "${log_dir}" "${methylKit_dir}" "${bedGraph_dir}" || {

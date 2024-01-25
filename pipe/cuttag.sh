@@ -163,8 +163,8 @@ echo >&2 -e "[info] Trim: ${B}$trim${N}"
 
 if [ "$trim" == "true" ]; then
   command_exists "fastp"
-  source ${script_path}/../src/fastp_cmd.sh
-  trim_files $indir $odir/clean $th
+  source ${script_path}/../src/fastp_cmd2.sh
+  trim_files $indir $odir/clean
 else
   date >&2
   echo >&2 -e "[info] Skipping Trim ... \n"
@@ -192,22 +192,11 @@ echo >&2 -e "[info] Filter: ${B}$filter${N}"
 if [ "$filter" == "true" ]; then
   # mark PCR-dup
   echo >&2 "[info] Mark PCR-Duplicate"
+  source ${script_path}/../src/filter.sh
+  filter_bam ${odir}/align 16
 
-  for bam in ${odir}/align/*bam; do
-    base=$(basename ${bam} .sorted.bam)
-    sambamba markdup -t $th ${bam} ${odir}/align/${base}.sorted.markdup.bam \
-      2>${odir}/log/${base}.sambamba
-  done
-  # filter
-  echo >&2 "[info] Filter Out Reads in BAM that are marked as Unmaped & PCR-Duplicate & Multi-mappers"
-
-  for j in ${odir}/align/*sorted.markdup.bam; do
-    base=$(basename ${j} .sorted.markdup.bam)
-    samtools view -@ 20 -bF 1804 -q 20 ${j} -o ${odir}/align/${base}.flt.bam
-    samtools index -@ 20 ${odir}/align/${base}.flt.bam
-  done
   rm ${odir}/align/*markdup*
-  rm ${odir}/align/*sorted.bam*
+  # rm ${odir}/align/*sorted.bam*
 else
   date >&2
   echo -e "[info] Skip Filter...\n"
