@@ -1,23 +1,19 @@
-# set up the software environment
-# module load deeptools/2.0
+#!/bin/bash
 
 input=${1}
-# set threads
-threads=${2-20}
+output=${2}
+threads=${3-20}
 
 # make the output file
-mkdir bw
-
-# set up file names
-bw_out=bw
+if [ ! -d ${output} ]; then
+	mkdir -p ${output}
+fi
 
 # change bam to bw
-ls ${input}/*.bam | while read id;
-do
-	base=$(basename ${id} .bam)
-
+for id in ./alignment/map2Tak1V6/*.bam; do
+	base=$(basename "${id}")
+	b=${base%%.*}
 	bamCoverage -b ${id} \
-	--binSize 10 --numberOfProcessors ${threads} \
-	-o ${bw_out}/${base}.bw --normalizeUsing BPM
+		--binSize 10 --numberOfProcessors ${threads} \
+		-o ${output}/${b}.bw --normalizeUsing BPM
 done
-

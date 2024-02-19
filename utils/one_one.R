@@ -7,6 +7,9 @@ one_one <- function(x,
                     shrink = TRUE,
                     seq = "ATAC") {
   # Do the DESeq contrast
+  require(DESeq2)
+  require(dplyr)
+
   treat <- x[1]
   control <- x[2]
   key <- x[3]
@@ -20,7 +23,7 @@ one_one <- function(x,
         alpha = cutoff_padj,
         contrast = c(Type, treat, control)
       )
-    }else{
+    } else {
       res_lfc <- results(
         object = dds_choose,
         alpha = cutoff_padj,

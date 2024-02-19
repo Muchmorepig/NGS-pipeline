@@ -24,7 +24,7 @@ usage() {
   echo -e "
     -i | --input    双端测序文件位置 (eg: fq.gz 格式为 sample_R1.fq.gz sample_R2.fq.gz)
     -o | --output   项目路径, 后续结果文件都会保存于此 (Defult: cuttag)
-    -g | --genome   基因组, 默认是tair10, 其他可选: mpTak1、mpTak2、irgsp
+    -g | --genome   基因组, 默认是tair10, 其他可选: mpTak1_V5、mpTak1_V6、mpTak2、irgsp
     -t | --trim     是否去接头 (Defult: false)
     -a | --align    是否比对到基因组 (Defult: false)
     -l | --filter   是否去除PCR重复等 (Defult: false)
@@ -195,7 +195,6 @@ if [ "$filter" == "true" ]; then
   source ${script_path}/../src/filter.sh
   filter_bam ${odir}/align 16
 
-  rm ${odir}/align/*markdup*
   # rm ${odir}/align/*sorted.bam*
 else
   date >&2

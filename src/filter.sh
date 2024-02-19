@@ -21,7 +21,9 @@ filter_bam() {
                 samtools view -@ "$th" -bF 1804 -q 20 "${dir}/${base}.sorted.markdup.bam" -o "${dir}/${base}.flt.bam" &&
                 samtools index -@ "$th" "${dir}/${base}.flt.bam" &&
                 echo >&2 "${base} done" &&
-                rm -v "${dir}/${base}.sorted.markdup.bam" "${dir}/${base}.sorted.markdup.bam.bai"
+                rm -v "${dir}/${base}.sorted.markdup.bam" "${dir}/${base}.sorted.markdup.bam.bai" &&
+                rm -v "${dir}/${base}.sorted.bam" "${dir}/${base}.sorted.bam.bai"
+                
         ) &
 
         # Increment and check if we need to wait for jobs to finish

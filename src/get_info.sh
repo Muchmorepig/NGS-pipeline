@@ -9,12 +9,16 @@ get_info() {
       idx="/data5/wmc_data/index/bowtie2/Oryza_sativa_RAP/Oryza_sativa"
       s=3.7e8
       ;;
-    mpTak1)
-    idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V5/Mpolymorpha_V5"
+    mpTak1_V5)
+    idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/tak1_V5/Mpolymorpha_V5"
+    s=2.2e8
+        ;;
+    mpTak1_V6)
+    idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/tak1_V6/Mpolymorpha"
     s=2.2e8
         ;;
     mpTak2)
-    idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/V6/Mpolymorpha_V6"
+    idx="/data5/wmc_data/index/bowtie2/Mpolymorpha/tak2_V6/Mpolymorpha_V6"
     s=2.4e8
         ;;
     *)
