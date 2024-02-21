@@ -1,0 +1,577 @@
+---
+title: "cim22dsim4dsim12d_intergrated_analysis seurat4"
+output: html_document
+author: "Tian-Qi Zhang"
+---
+```{r}
+library(Seurat)
+library(dplyr)
+library(patchwork)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  cache.lazy = FALSE,
+  tidy = TRUE)
+```
+
+###加载.rds文件
+
+```{r}
+cim22d.rds <- readRDS("/data5/cy_data/scRNA_Seq/202206_cim22d_seraut4/cim22d_hvg1.rds")
+sim4d.rds <- readRDS("/data5/cy_data/scRNA_Seq/202206_sim4d_seraut4/sim4d_hvg1.rds")
+sim12d.rds <- readRDS("/data5/cy_data/scRNA_Seq/202206_sim12d_seurat4/sim12d_hvg1.rds")
+```
+
+
+```{r}
+seu.list <- list(cim22d.rds, sim4d.rds, sim12d.rds)
+cim22d_sim4d_sim12d <- merge(seu.list[[1]], seu.list[-1])
+
+```
+
+
+
+```{r,results='hide', fig.height=7,fig.width=13 }
+# We filter out cells that have unique feature counts over 2,500 or less than 200
+cim22d_sim4d_sim12d <- subset(x = cim22d_sim4d_sim12d, 
+                 subset = nFeature_RNA > 500 & nFeature_RNA < 5000 & percent.mito < 0.05)
+
+# 过滤后可以展示过后基因和表达量
+# FeatureScatter(object = cim22d_f8k_hvg1,feature1 = "nCount_RNA",feature2 = "nFeature_RNA")
+```
+
+
+
+### Normalizing the data
+
+```{r normalize, results='hide'}
+cim22d_sim4d_sim12d <- NormalizeData(object = cim22d_sim4d_sim12d, 
+                        normalization.method = "LogNormalize", 
+                        scale.factor = 1e4)
+```
+
+
+
+### Detection of variable features across the single cells
+
+
+```{r var_genes}
+cim22d_sim4d_sim12d <- FindVariableFeatures(object = cim22d_sim4d_sim12d, 
+                               selection.method = 'mean.var.plot',
+                               mean.cutoff = c(0.0125, 3), 
+                               dispersion.cutoff = c(1.0, Inf))
+
+
+#画图
+#VariableFeaturePlot(object = cim22d_f8k_hvg1)
+
+length(x = VariableFeatures(object = cim22d_sim4d_sim12d))
+```
+
+
+
+
+
+
+
+### Scaling the data and removing unwanted sources of variation
+
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+cim22d_sim4d_sim12d <- ScaleData(object = cim22d_sim4d_sim12d, 
+                    features = rownames(x = cim22d_sim4d_sim12d), 
+                    vars.to.regress = c("nCount_RNA"))
+
+```
+
+### Perform linear dimensional reduction
+
+```{r pca}
+cim22d_sim4d_sim12d <- RunPCA(object = cim22d_sim4d_sim12d, 
+                 features = VariableFeatures(object = cim22d_sim4d_sim12d), 
+                 verbose = FALSE,
+                 npcs = 100)
+```
+
+
+#不跑harmony
+```{r}
+library(harmony)
+library(rlang)
+cim22d_sim4d_sim12d <- RunHarmony(cim22d_sim4d_sim12d, group.by.vars = "orig.ident")
+```
+
+
+
+
+### Cluster the cells
+
+```{r dimension}
+dimension <- 1:20
+res = 1.0
+```
+
+
+```{r cluster, fig.height=5, fig.width=7}
+cim22d_sim4d_sim12d <- FindNeighbors(object = cim22d_sim4d_sim12d,
+                               reduction = "pca", dims = dimension)
+cim22d_sim4d_sim12d <- FindClusters(object = cim22d_sim4d_sim12d, resolution = res)
+```
+
+
+
+
+### Run Non-linear dimensional reduction (tSNE)
+
+```{r tsne, fig.height=5, fig.width=7, message=FALSE, warnings=FALSE}
+cim22d_sim4d_sim12d <- RunTSNE(object = cim22d_sim4d_sim12d, 
+                         reduction = "pca",
+                         dims = 1:20)
+```
+
+### Run UMAP
+
+添加Python路径
+
+```{r}
+cim22d_sim4d_sim12d <- RunUMAP(object = cim22d_sim4d_sim12d, 
+                         reduction = "pca", 
+                         dims = 1:20)
+```
+#先不跑
+```{r}
+pdf(file = "/data5/cy_data/scRNA_Seq/SC20210915SC20211014_OSCIM22DEXTRAOSSIM4D_integrate_analysis/OsCIM22D_OsSIM4D_OsSIM12D_all_umap.pdf",width = 10,height = 10)
+p <- DimPlot(object = cim22d_sim4d_sim12d, reduction = "umap",group.by = "orig.ident")
+levels(p$data$orig.ident ) <-  c("CIM22d", "SIM12D", "SIM4D")
+plot(p)
+dev.off()
+```
+
+### Run UMAP
+
+添加Python路径
+
+
+```{r}
+pdf(file = "/data5/cy_data/scRNA_Seq/202206_cim22dsim4dsim12d_intergrate/plot/cim22dsim4dsim12d_intergrate_umap(withoutharmony).pdf",width = 10,height = 10)
+plot(DimPlot(object = cim22d_sim4d_sim12d, reduction = "umap", label = TRUE, repel = TRUE,pt.size = 1))
+dev.off()
+```
+#group by sample
+```{r}
+pdf(file = "/data5/cy_data/scRNA_Seq/202206_cim22dsim4dsim12d_intergrate/plot/cim22dsim4dsim12d_intergrate_umap(withoutharmony)_bysample.pdf",width = 10,height = 10)
+p <- DimPlot(object = cim22d_sim4d_sim12d, reduction = "umap",group.by = "orig.ident")
+#levels(p$data$orig.ident ) <-  c("CIM22d", "SIM12D", "SIM4D")
+plot(p)
+dev.off()
+
+```
+
+```{r}
+
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os01g0134900")#xylem
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os01g0971000")#phleom
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os06g0127800")#initial cell
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os06g0160100")#cellcycle
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os04g0105200")#sieve elemrnt
+FeaturePlot(cim22d_sim4d_sim12d, features = "Os06g0653000")#epidermis
+```
+
+```{r}
+DimPlot(cim22d_sim4d_sim12d, label = TRUE)
+```
+
+### Save the object.
+```{r saveobject}
+saveRDS(cim22d_sim4d_sim12d, file = "cim22d_sim4d_sim12d.rds")
+```
+
+
+
+```{r}
+
+df <- cim22d_sim4d_sim12d@meta.data
+df <- df[df$seurat_clusters == 17, ]
+```
+
+#聚类回帖分析
+
+人工发现整合分析中的cluster7，14，18，13，17可能是SIM12D多出来的细胞类群，于是想把这些cluster回帖到SIM12D的类群
+
+提取目标类群的metadata
+
+```{R}
+merge_cluster_target <- 17
+target_cluster_meta <- cim22d_sim12d@meta.data[cim22d_sim12d$seurat_clusters == merge_cluster_target, ]
+
+```
+
+简单统计细胞比例
+
+```{R}
+table(target_cluster_meta$orig.ident)
+```
+
+
+提取其中一个类型的细胞
+
+```{r}
+cell_name <- row.names(target_cluster_meta[target_cluster_meta$orig.ident == "10X_root_f8k", ])
+```
+
+
+提取其中符合需求的barcode信息
+
+```{r}
+cell_name <- substring(cell_name, 1, 18)
+```
+
+统计barcode所在的类群
+
+
+```{r}
+table(ossim12d.rds$seurat_clusters[cell_name])
+```
+
+画图，在meta.data里面增加一列，用于表征一个细胞是否在我们给定的cell中
+
+```{r}
+osSIM12D_f8k_hvg1.rds$merge_cluster_17 <- ifelse(row.names( osSIM12D_f8k_hvg1.rds@meta.data ) %in% cell_name, 1, 0)
+```
+
+
+
+```{r}
+pdf(file = "./20211104_CIM22D_SIM12D_intergrated_analysis/OsCIM22D_OsSIM12D_cluster17_umap.pdf",width = 10,height = 10)
+plot(DimPlot(osSIM12D_f8k_hvg1.rds,reduction = "umap",  group.by = "merge_cluster_17"))
+dev.off()
+```
+
+
+
+
+
+
+#################################################################################################################
+
+### Finding differentially expressed genes (cluster biomarkers)
+
+
+```{r markers1, fig.height=8, fig.width=15, warning=FALSE}
+# find all markers of cluster 1
+cluster1.markers_cim22d_sim4d_sim12d <- FindMarkers(object = cim22d_sim4d_sim12d, 
+                                              ident.1 = 1, 
+                                              min.pct = 0.25)
+head(x = cluster1.markers_cim22d_sim4d_sim12d, n = 5)
+```
+
+
+查找cluster 0 maker genes
+```{r }
+cluster0.markers_cim22d_sim4d_sim12d <- FindMarkers(object = cim22d_sim4d_sim12d, 
+                                              ident.1 = 0, 
+                                              min.pct = 0.25)
+head(x = cluster0.markers_cim22d_sim4d_sim12d, n = 5)
+```
+
+
+
+```{r }
+# find all markers distinguishing cluster 5 from clusters 0 and 3
+cluster5.markers_cim22d_sim4d_sim12d <- FindMarkers(object = cim22d_sim4d_sim12d, 
+                                ident.1 = 5, 
+                                ident.2 = c(0, 3), 
+                                min.pct = 0.25)
+head(x = cluster5.markers_cim22d_sim4d_sim12d, n = 5)
+```
+
+查找所有显著cell marker genes
+```{r }
+#find markers for every cluster compared to all remaining cells, report only the positive ones
+cim22d_sim4d_sim12d.markers <- FindAllMarkers(object = cim22d_sim4d_sim12d, 
+                                        only.pos = TRUE, 
+                                        min.pct = 0.25, 
+                                        logfc.threshold = 0.25)
+cim22d_sim4d_sim12d.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+
+```
+
+
+各Cluster中Top10基因表达heatmap
+```{r }
+cim22d_sim4d_sim12d.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC) -> top10
+
+pdf(file = "./plot/cim22d_sim4d_sim12d_top10.pdf",width = 10,height = 10)
+plot(DoHeatmap(object = cim22d_sim12d, features = top10$gene) + NoLegend())
+dev.off()
+```
+
+
+
+
+### 添加注释
+（不用跑）
+
+```{r }
+
+library(org.Os2.eg.db)
+
+cim22d_sim12d.markers$Symbol <- mapIds(org.Os2.eg.db, keys = cim22d_sim12d.markers$gene, 
+                                  column = "RAP_Symbol",
+                                  multiVals = "first",
+                                  keytype = "GID", )
+
+cim22d_sim12d.markers$Name <- mapIds(org.Os2.eg.db, keys = cim22d_sim12d.markers$gene, 
+                                  column = "RAP_Name",
+                                  multiVals = "first",
+                                  keytype = "GID", )
+
+
+
+
+write.csv(x=cim22d_sim12d.markers,file = "./20211104_CIM22D_SIM12D_intergrated_analysis/osCIM22D_osSIM12D_marker_genes.csv")
+```
+
+
+###anotation from wanmuchun
+```{r}
+anno <- read.csv("~/reference/Oryza_sativa/annotation/IRGSP_OS2tair_anno.csv")
+
+cim22d_sim4d_sim12d.markers <- left_join(cim22d_sim4d_sim12d.markers, anno, by=c("gene"="RAP_ID"))
+
+write.csv(x=cim22d_sim4d_sim12d.markers,file = "./result/sim4d_marker_genes_bywmcano.csv")
+
+
+```
+
+```{r }
+cluster1.markers_cim22d_sim4d_sim12d <- FindMarkers(object = cim22d_sim4d_sim12d, 
+                                ident.1 = 0, 
+                                logfc.threshold = 0.25, 
+                                test.use = "roc", 
+                                only.pos = TRUE)
+```
+
+
+
+### 自定义基因Marker Gene画图展示
+
+```{r }
+input.genes <- c("Os01g0660200","Os01g0134900","Os05g0349800","Os03g0699000","Os06g0160100","Os01g0971000","Os06g0653000","Os03g0184500","Os01g0896400","Os06g0127800","Os04g0105200","Os03g0135100")
+```
+
+```{r markerplots, fig.height=8, fig.width=15,}
+VlnPlot(object = cim22d_sim4d_sim12d, 
+        features = input.genes)
+```
+
+
+```{r }
+# you can plot raw counts as well
+VlnPlot(object = cim22d_sim4d_sim12d, 
+        features = input.genes,
+        slot = 'counts', 
+        log = TRUE)
+```
+
+
+```{r }
+FeaturePlot(object = cim22d_sim4d_sim12d, 
+            features = input.genes)
+```
+
+
+### 添加注释（TQ师兄的）
+```{r }
+#install.packages("/data3/wanglab/yc/reference/org.Os2.eg.db", repo=NULL)
+library(org.Os2.eg.db)
+
+cim22d_sim4d_sim12d.markers$Symbol <- mapIds(org.Os2.eg.db, keys = cim22d_sim4d_sim12d.markers$gene, 
+                                  column = "RAP_Symbol",
+                                  multiVals = "first",
+                                  keytype = "GID", )
+
+cim22d_sim4d_sim12d.markers$Name <- mapIds(org.Os2.eg.db, keys = cim22d_sim4d_sim12d.markers$gene, 
+                                  column = "RAP_Name",
+                                  multiVals = "first",
+                                  keytype = "GID", )
+
+
+
+
+write.csv(x=cim22d_sim4d_sim12d.markers,file = "./result/cim22dsim4dsim12d_marker_genes_byTQanno.csv")
+```
+
+
+```{r}
+tmp <- read.csv("./result/cim22dsim4dsim12d_marker_genes_byTQanno.csv", row.names = 1)
+
+out <- lapply(unique(tmp$cluster), function(x) {
+    tmp[tmp$cluster == x, ]
+})
+
+names(out) <- paste0("cluster_", unique(tmp$cluster))
+
+openxlsx::write.xlsx(out, "./result/cim22d_sim4d_sim12d_markers_bywmc_addTQ.xlsx")
+```
+
+
+#分析原来s12_cluster11的marker基因为什么变得不特异了
+```{r}
+sim12d <- sim12d.rds
+```
+
+```{R}
+sim12d_cluster_target <- 8
+target_cluster_meta <- sim12d@meta.data[sim12d$seurat_clusters == sim12d_cluster_target, ]
+
+```
+
+
+简单统计细胞比例
+
+```{R}
+table(target_cluster_meta$orig.ident)
+```
+
+
+提取其中一个类型的细胞
+
+```{r}
+cell_name <- row.names(target_cluster_meta)
+```
+
+
+提取其中符合需求的barcode信息
+
+```{r}
+cell_name <- paste0(substring(cell_name, 1, 18), "_3")
+```
+
+统计barcode所在的类群
+
+```{r}
+inter_meta <- cim22d_sim4d_sim12d@meta.data
+
+```
+
+
+
+```{r}
+table(inter_meta[cell_name, 'seurat_clusters'])
+```
+
+
+#画图，在meta.data里面增加一列，用于表征一个细胞是否在我们给定的cell中(没跑)
+
+```{r}
+osSIM12D_f8k_hvg1.rds$merge_cluster_17 <- ifelse(row.names( osSIM12D_f8k_hvg1.rds@meta.data ) %in% cell_name, 1, 0)
+```
+
+
+
+```{r}
+pdf(file = "./20211104_CIM22D_SIM12D_intergrated_analysis/OsCIM22D_OsSIM12D_cluster17_umap.pdf",width = 10,height = 10)
+plot(DimPlot(osSIM12D_f8k_hvg1.rds,reduction = "umap",  group.by = "merge_cluster_17"))
+dev.off()
+```
+
+
+
+
+#########################################################################################################################################
+#类群GO注释
+```{r}
+library(data.table)
+suppressMessages(library(clusterProfiler)) 
+library(org.At.tair.db)
+orgdb <- org.At.tair.db
+
+os_at <- fread(
+    "/data3/wanglab/wmc/reference/Oryza_sativa/annotation/IRGSP_OsAt_Orthologous.tsv")
+markers_cim22d_sim4d_sim12d <- read.csv("./result/cim22dsim4dsim12d_marker_genes_byTQanno.csv")
+markers_cim22d_sim4d_sim12d_addTAIR <- left_join(markers_cim22d_sim4d_sim12d, os_at, by=c("gene"="RAP_ID"))
+
+goall <- lapply(unique(markers_cim22d_sim4d_sim12d_addTAIR$cluster), FUN = function(x){
+  gene <- markers_cim22d_sim4d_sim12d_addTAIR[markers_cim22d_sim4d_sim12d_addTAIR$cluster == x, "TAIR"]
+  gene <- unique(na.omit(gene))
+  print(x)
+  if(length(gene) != 0){
+  gores <- enrichGO(
+        gene = gene,
+        OrgDb = orgdb,
+        keyType = "TAIR",
+        ont = "BP",
+        # readable = TRUE,
+        pvalueCutoff = 0.05,
+        qvalueCutoff = 0.2
+    ) %>%
+        clusterProfiler::simplify(
+            .,
+            cutoff = 0.7,
+            by = "p.adjust",
+            select_fun = min
+        ) %>%
+        as.data.frame()
+  gores}
+})
+
+names(goall) <- paste0("C", unique(markers_cim22d_sim4d_sim12d_addTAIR$cluster)) 
+
+
+gobarplot <- function(dat = g, size = 8, tt = "") {
+    if (!"BuenColors" %in% (.packages())) library(BuenColors)
+    # dat <- dplyr::arrange(dat, -log10(pvalue))
+    dat <- dplyr::arrange(dat, -log10(p.adjust))
+    dat$Description <- factor(dat$Description, levels = dat$Description)
+    ggplot(
+        dat,
+        aes(
+            x = Description,
+            # y = -log10(pvalue),
+            y = -log10(p.adjust),
+            label = Description
+        )
+    ) +
+        geom_bar(
+            stat = "identity",
+            position = position_stack(reverse = T),
+            fill = jdb_color_map(c("CLP")), alpha = 0.75
+        ) +
+        theme_minimal() +
+        coord_flip() +
+        L_border() +
+        # labs(x = "Pathway Name", y = "-log10(pvalue)", title = paste0("GO ENRICH: ", tt)) +
+        labs(x = "Pathway Name", y = "-log10(padjust)", title = paste0("GO ENRICH: ", tt)) +
+        theme(legend.position = "none", axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+        geom_text(color = "black", position = position_stack(vjust = 0.02), hjust = 0, size = size) +
+        scale_y_continuous(expand = c(0, 0.01)) +
+        theme(
+            title = element_text(size = 15),
+            text = element_text(size = 15),
+            axis.text = element_text(size = 12),
+            axis.title = element_text(size = 15)
+        )
+}
+
+openxlsx::write.xlsx(goall, file = "./result/GO_oscim22d_ossim4d_ossim12d.xlsx")
+
+sp <- names(goall)[-7]
+
+p <- lapply(sp, function(x) {
+    gobarplot(goall[[x]], tt = x, size = 4)
+})
+
+
+
+pall <- do.call(cowplot::plot_grid, c(list(ncol = 5), p))
+
+pdf("./plot/go_tmp2.pdf", width=54, height = 60)
+pall
+dev.off()
+
+```
+

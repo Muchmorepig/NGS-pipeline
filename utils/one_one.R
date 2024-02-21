@@ -6,7 +6,6 @@ one_one <- function(x,
                     od = outdir,
                     shrink = TRUE,
                     seq = "ATAC") {
-  # Do the DESeq contrast
   require(DESeq2)
   require(dplyr)
 
@@ -15,36 +14,39 @@ one_one <- function(x,
   key <- x[3]
   message(c(treat, "\t", control, "\t", key))
 
-  suppressMessages(
+  res_lfc <- suppressMessages({
     if (shrink) {
-      res_lfc <- lfcShrink(
+      lfcShrink(
         dds = dds_choose,
         type = "ashr",
         alpha = cutoff_padj,
         contrast = c(Type, treat, control)
       )
     } else {
-      res_lfc <- results(
+      results(
         object = dds_choose,
         alpha = cutoff_padj,
         contrast = c(Type, treat, control)
       )
     }
-  )
+  })
 
-  if (seq == "ATAC") {
-    res_lfc %>%
-      as_tibble(rownames = "feature_id") %>%
-      mutate(VS = key) %>%
-      dplyr::select(1, 3, 5:7) %>%
-      readr::write_csv(file = file.path(od, paste0(key, "_DA.csv")))
-  } else if (seq == "RNA") {
-    res_lfc %>%
-      as_tibble(rownames = "geneId") %>%
-      mutate(VS = key) %>%
-      dplyr::select(1, 3, 5:7) %>%
-      readr::write_csv(file = file.path(od, paste0(key, "_DE.csv")))
+  if (is.null(res_lfc)) {
+    warning("Results are NULL for comparison: ", key)
+    return(NULL)
   }
 
-  return(" ^_^ ")
+  output_filename <- switch(seq,
+    "ATAC" = paste0(key, "_DA.csv"),
+    "RNA" = paste0(key, "_DE.csv"),
+    paste0(key, "_results.csv")
+  ) # Default or fallback file name
+
+  res_lfc %>%
+    as_tibble(rownames = ifelse(seq == "ATAC", "feature_id", "geneId")) %>%
+    mutate(VS = key) %>%
+    dplyr::select(1, 3, 5:7) %>%
+    readr::write_csv(file = file.path(od, output_filename))
+
+  message("File written: ", output_filename)
 }
