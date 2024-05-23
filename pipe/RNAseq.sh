@@ -1,5 +1,5 @@
-#source ~/NGS-pipeline/src/fastp_cmd2.sh
-#trim_files rawdata clean
+source ~/NGS-pipeline/src/fastp_cmd2.sh
+trim_files rawdata clean
 
 source ~/NGS-pipeline/src/hisat2_align.sh
 
