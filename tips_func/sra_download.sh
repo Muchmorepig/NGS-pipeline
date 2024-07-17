@@ -31,7 +31,7 @@ run_fastq_dump() {
     while (( attempts < max_attempts )); do
         ((attempts++))
 
-        if prefetch --progress --max-size 300G -q --output-directory "${output_dir}" "${sra}" && \
+        if prefetch --max-size 300G -q --output-directory "${output_dir}" "${sra}" && \
            fasterq-dump --mem 500MB --temp "${temp_dir}" --outdir "${output_dir}" --split-files "${output_dir}/${sra}/${sra}.sra" > "${log_file}" 2>&1; then
             rm -rf "${output_dir}/${sra}"
             echo "Successfully processed ${sra} on attempt ${attempts}." | tee -a "${log_file}"
@@ -48,14 +48,18 @@ run_fastq_dump() {
 
 wait_for_jobs() {
     while (( job_count >= max_jobs )); do
+        new_job_pids=()
         for pid in "${job_pids[@]}"; do
-            if ! kill -0 "$pid" 2>/dev/null; then
-                wait "$pid"
-                job_count=$((job_count - 1))
-                job_pids=("${job_pids[@]/$pid}")
-                break
+            if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    wait "$pid"
+                    job_count=$((job_count - 1))
+                else
+                    new_job_pids+=("$pid")
+                fi
             fi
         done
+        job_pids=("${new_job_pids[@]}")
         sleep 1
     done
 }
@@ -70,7 +74,9 @@ while IFS= read -r sra; do
 done < "${sra_list}"
 
 for pid in "${job_pids[@]}"; do
-    wait "$pid"
+    if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
+        wait "$pid"
+    fi
 done
 
 rm -rf "${temp_dir}"
