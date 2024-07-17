@@ -3,60 +3,75 @@
 max_jobs=2  # 最大并发任务数量
 sra_list="sra.list"
 output_dir="output"
- 
+
 while getopts 'j:l:o:' flag; do
     case "${flag}" in
         j) max_jobs="${OPTARG}" ;;
         l) sra_list="${OPTARG}" ;;
         o) output_dir="${OPTARG}" ;;
-        *) exit 1 ;;
+        *) 
+            echo "Usage: $0 [-j max_jobs] [-l sra_list] [-o output_dir]"
+            exit 1 
+            ;;
     esac
 done
 
-job_count=0 
+temp_dir="${output_dir}/temp_$$"
+mkdir -p "${output_dir}" "${temp_dir}" || { echo "Failed to create needed directories"; exit 1; }
 
-function run_fastq_dump {
-    local sra=$1
-    local attempt=0
+job_count=0
+declare -a job_pids
+
+run_fastq_dump() {
+    local sra="$1"
+    local attempts=0
     local max_attempts=4  # 最多重试次数
+    local log_file="${output_dir}/${sra}.log"
 
-    while (( attempt < max_attempts )); do
-        let attempt+=1
-        fasterq-dump \
-                --mem 500MB \
-                --temp "${output_dir}/temp" \
-                --outdir "${output_dir}" \
-                --split-files "$sra" > "${output_dir}/${sra}.log" 2>&1
+    while (( attempts < max_attempts )); do
+        ((attempts++))
 
-        if [ $? -eq 0 ]; then
-            echo "Successfully processed $sra on attempt $attempt."
+        if prefetch --progress --max-size 300G -q --output-directory "${output_dir}" "${sra}" && \
+           fasterq-dump --mem 500MB --temp "${temp_dir}" --outdir "${output_dir}" --split-files "${output_dir}/${sra}/${sra}.sra" > "${log_file}" 2>&1; then
+            rm -rf "${output_dir}/${sra}"
+            echo "Successfully processed ${sra} on attempt ${attempts}." | tee -a "${log_file}"
             return 0
         else
-            echo "Failed to process $sra on attempt $attempt. Retrying..."
-            sleep 4  # 等待5秒后重试
+            echo "Failed to process ${sra} on attempt ${attempts}. Retrying in 4 seconds..." | tee -a "${log_file}"
+            sleep 4  # 等待4秒后重试
         fi
     done
 
-    echo "Failed to process $sra after $max_attempts attempts."
+    echo "Failed to process ${sra} after ${max_attempts} attempts." | tee -a "${log_file}"
     return 1
 }
 
-function wait_for_jobs {
+wait_for_jobs() {
     while (( job_count >= max_jobs )); do
-        wait -n  # 等待任意一个后台任务完成
-        ((job_count--))
+        for pid in "${job_pids[@]}"; do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid"
+                job_count=$((job_count - 1))
+                job_pids=("${job_pids[@]/$pid}")
+                break
+            fi
+        done
+        sleep 1
     done
 }
 
-mkdir -p "${output_dir}/temp"
+while IFS= read -r sra; do
+    [[ -z "${sra}" || "${sra}" =~ ^# ]] && continue
 
-# 读取 SRA 列表文件并处理
-while read sra; do
     wait_for_jobs
-    run_fastq_dump "$sra" &
+    run_fastq_dump "${sra}" &
+    job_pids+=("$!")
     ((job_count++))
-done < "$sra_list"
+done < "${sra_list}"
 
-wait
+for pid in "${job_pids[@]}"; do
+    wait "$pid"
+done
 
-rm -rf "${output_dir}/temp"
+rm -rf "${temp_dir}"
+echo "All tasks are complete."
