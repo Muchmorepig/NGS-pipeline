@@ -32,7 +32,7 @@ run_fastq_dump() {
         ((attempts++))
 
         if prefetch --max-size 300G -q --output-directory "${output_dir}" "${sra}" && \
-           fasterq-dump --mem 500MB --temp "${temp_dir}" --outdir "${output_dir}" --split-files "${output_dir}/${sra}/${sra}.sra" > "${log_file}" 2>&1; then
+           fasterq-dump --mem 500MB --temp "${temp_dir}" --outdir "${output_dir}" --split-files  --include-technical "${output_dir}/${sra}" > "${log_file}" 2>&1; then
             rm -rf "${output_dir}/${sra}"
             echo "Successfully processed ${sra} on attempt ${attempts}." | tee -a "${log_file}"
             return 0
