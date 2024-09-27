@@ -1,7 +1,7 @@
 library(data.table)
 
 calcConDist <- function(dat.tb, bySample = FALSE,
-                        colname.cluster = "seurat_cluster",
+                        colname.cluster = "seurat_clusters",
                         colname.sample = NULL,
                         colname.condition = "orig.ident",
                         method = "chisq", min.rowSum = 0) {
