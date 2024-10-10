@@ -1,3 +1,4 @@
 .onLoad <- function(libname, pkgname) {
-  message("Mu-chun's Personal Bioinformatics Tools")
+  packageStartupMessage("Mu-chun's Personal Bioinformatics Tools")
+  # message("Mu-chun's Personal Bioinformatics Tools")
 }
