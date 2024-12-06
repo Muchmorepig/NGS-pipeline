@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# 输入变量
 input_dir=${1}
 output_dir=${2:-output_bw}
 threads=${3:-20}
 
-# 确认输入目录存在
 if [ ! -d "${input_dir}" ]; then
     echo "Input directory ${input_dir} does not exist."
     exit 1
 fi
 
-# 创建输出目录
 if [ ! -d "${output_dir}" ]; then
     mkdir -p "${output_dir}"
 fi
@@ -35,10 +32,8 @@ for prefix in "${!prefix_map[@]}"; do
 
     # 检查是否存在匹配的文件
     if [ ${#files[@]} -gt 0 ]; then
-        # 输出合并文件名
         merged_bam="${input_dir}/${prefix}.merged.bam"
         
-        # 使用samtools merge进行合并操作
         samtools merge "$merged_bam" "${files[@]}" -@ 20
         
         # 列出哪些文件被合并
@@ -59,7 +54,6 @@ for prefix in "${!prefix_map[@]}"; do
 
         echo "Converted $merged_bam to $bw_file"
 
-        # 删除合并后的 BAM 文件及其索引文件
         rm "$merged_bam" "$merged_bam.bai"
         echo "Deleted merged BAM file and its index: $merged_bam"
     else
