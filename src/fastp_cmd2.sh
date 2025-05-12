@@ -40,7 +40,9 @@ trim_files() {
     date >&2
     echo >&2 "[info] Trimming files in ${indir} using 'fastp'"
     echo "       Output directory: $odir"
-
+    
+    # cite info
+    parallel --citation
     find "${indir}" -name '*_R1.fq.gz' -print0 |
         sed -z 's/_R1\.fq\.gz$//' |
         parallel -0 -j 4 trim_with_fastp \
