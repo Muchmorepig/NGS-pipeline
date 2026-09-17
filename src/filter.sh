@@ -38,7 +38,4 @@ filter_bam() {
     done
     
     wait
-
-    # 删除临时目录
-    rm -rf "${dir}/sambamba_temp"
 }
