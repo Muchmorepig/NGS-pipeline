@@ -271,7 +271,7 @@ if [ "$call" == "true" ]; then
       --outdir ${odir}/peak/broad \
       --broad --broad-cutoff 0.1 2>${macs2_log}/${base}.broad
 
-    python ${script_path}/../scr/get_summits_broadPeak.py peak/broad/${base}_peaks.broadPeak |
+    python ${script_path}/../src/get_summits_broadPeak.py peak/broad/${base}_peaks.broadPeak |
       $bedopsbin/sort-bed - >peak/broad/${base}_summits.bed
   done
 else
