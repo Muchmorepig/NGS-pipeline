@@ -22,7 +22,7 @@ filter_bam() {
                 samtools index -@ "$th" "${dir}/${base}.flt.bam" &&
                 echo >&2 "${base} done" &&
                 rm -v "${dir}/${base}.sorted.markdup.bam" "${dir}/${base}.sorted.markdup.bam.bai" &&
-                rm -v "${dir}/${base}.sorted.bam" "${dir}/${base}.sorted.bam.bai"
+                rm -v "${dir}/${base}.sorted.bam"
                 
         ) &
 
