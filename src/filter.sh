@@ -12,11 +12,14 @@ filter_bam() {
     fi
 
     local job_count=0
+    # 临时目录
+    mkdir -p "${dir}/sambamba_temp"
+    
     for bam in "${dir}/"*.bam; do
         local base=$(basename "${bam}" .sorted.bam)
         # Run sambamba markdup followed by samtools view and index in a subshell in the background
         (
-            sambamba markdup -t "$th" "${bam}" "${dir}/${base}.sorted.markdup.bam" \
+            sambamba markdup -t "$th" --tmpdir "${dir}/sambamba_temp"  "${bam}" "${dir}/${base}.sorted.markdup.bam" \
                 2>"${dir}/log/${base}.sambamba" &&
                 samtools view -@ "$th" -bF 1804 -q 20 "${dir}/${base}.sorted.markdup.bam" -o "${dir}/${base}.flt.bam" &&
                 samtools index -@ "$th" "${dir}/${base}.flt.bam" &&
@@ -34,5 +37,8 @@ filter_bam() {
         fi
     done
 
+    # 删除临时目录
+    rm -rf "${dir}/sambamba_temp"
+    
     wait
 }
