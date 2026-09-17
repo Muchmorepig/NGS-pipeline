@@ -224,7 +224,7 @@ if [ "$shift" == "true" ]; then
       --bam $dup -o ${odir}/align/${base}_shift.bam
     samtools sort -@ 20 -O bam -o ${odir}/align/${base}_shift.sorted.bam ${odir}/align/${base}_shift.bam 2>${odir}/log/tmp.log
     samtools index ${odir}/align/${base}_shift.sorted.bam
-    rm ${odir}/align/${base}_shift.bam
+    rm ${odir}/align/${base}.flt.bam
   done
 
   bam_file=${odir}/align/*shift.sorted.bam
@@ -271,7 +271,7 @@ if [ "$call" == "true" ]; then
       --outdir ${odir}/peak/broad \
       --broad --broad-cutoff 0.1 2>${macs2_log}/${base}.broad
 
-    python /data5/wmc_data/cuttag/scr/get_summits_broadPeak.py peak/broad/${base}_peaks.broadPeak |
+    python ${script_path}/../scr/get_summits_broadPeak.py peak/broad/${base}_peaks.broadPeak |
       $bedopsbin/sort-bed - >peak/broad/${base}_summits.bed
   done
 else
