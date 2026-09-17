@@ -224,14 +224,15 @@ if [ "$shift" == "true" ]; then
       --bam $dup -o ${odir}/align/${base}_shift.bam
     samtools sort -@ 20 -O bam -o ${odir}/align/${base}_shift.sorted.bam ${odir}/align/${base}_shift.bam 2>${odir}/log/tmp.log
     samtools index ${odir}/align/${base}_shift.sorted.bam
-    rm ${odir}/align/${base}.flt.bam
+    rm ${odir}/align/${base}.flt.bam ${odir}/align/${base}.flt.bam.bai && \
+    rm ${odir}/align/${base}_shift.bam
   done
 
   bam_file=${odir}/align/*shift.sorted.bam
 else
   date >&2
   echo >&2 -e "[info] Skip ATAC-Shift...\n"
-  bam_file=${odir}/align/*flt.sorted.bam
+  bam_file=${odir}/align/*flt.bam
 fi
 
 # bam_file=${odir}/align/*shift.sorted.bam
